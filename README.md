@@ -1,91 +1,72 @@
-# G Health CLI
+# G Health MCP
 
-`ghealth` is a local-first CLI for user-authorized Google Health API access.
+Connect your Google Health data to Codex, Cursor, Claude Code, or Claude Desktop. Ask about workouts, sleep, daily activity, and other measurements available through the Google Health API.
 
-The CLI stores tokens locally and does not include telemetry.
+Unofficial project; not affiliated with Google.
 
-## Prerequisites
+## Install
 
-1. **Install `uv`** (Python package manager):
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run this from the project folder:
 
-   ```bash
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   ```
-
-   See the [uv installation guide](https://docs.astral.sh/uv/getting-started/installation/) for other methods.
-
-2. **Set up a Google Cloud project with the Health API**:
-
-   Follow Google's official [Health API setup guide](https://developers.google.com/health/setup) to:
-   - Create a Google Cloud project
-   - Enable the Google Health API
-   - Configure an OAuth 2.0 consent screen
-   - Create an OAuth client ID (Desktop application type)
-   - Download the client credentials JSON file
-
-## Installation
-
-You can install `ghealth` directly from this GitHub repository using `uv`:
-
-```bash
-uv tool install https://github.com/chiragvijay/ghealth-cli.git
+```sh
+uv tool install .
 ```
 
-To update `ghealth` to the latest version, run:
+Requires Python 3.13 or newer. uv can install Python for you.
 
-```bash
-ghealth update
+## Set up Google access
+
+Each user needs their own Google OAuth client. Follow Google's [Health API setup guide](https://developers.google.com/health/setup) to:
+
+1. Create a Google Cloud project and enable the Google Health API.
+2. Configure the consent screen, add your account as a test user, and select the Health API scopes you need.
+3. Create a **Desktop app** OAuth client and download its JSON file. Choose Desktop app rather than the Web Server option in Google's generic wizard.
+
+Keep the downloaded file private.
+
+## Sign in and connect your agent
+
+Install your chosen agent, then run:
+
+```sh
+ghealth-mcp setup --credentials "/path/to/client.json" --client codex
 ```
 
-Alternatively, you can update directly:
+Choose the client name for your agent:
 
-```bash
-uv tool upgrade ghealth
+| Agent | Client name |
+| --- | --- |
+| Codex | `codex` |
+| Cursor | `cursor` |
+| Claude Code | `claude` |
+| Claude Desktop | `claude-desktop` |
+
+For Kiro Crew, follow the [manual setup](docs/clients.md#kiro-crew).
+
+Approve access in your browser, then restart or reconnect your agent. Your sign-in is saved and refreshed automatically.
+
+To connect another agent using the same sign-in:
+
+```sh
+ghealth-mcp connect --client cursor
 ```
 
-For local development:
+See [manual configuration](docs/clients.md) if you need to edit your agent's settings yourself.
 
-```bash
-uv sync
-uv run ghealth --help
-```
+## Use it
 
-## Setup
+Ask your agent:
 
-Point the CLI at your downloaded OAuth credentials and log in:
+- “Show my daily steps for the last week.”
+- “Summarize my latest workout.”
+- “How much deep sleep did I get last night?”
 
-```bash
-ghealth auth configure --credentials credentials.json
-ghealth auth login
-ghealth doctor
-```
+Available data depends on your device, Google permissions, and what the API exposes. Access is read-only by default.
 
-## Usage
+Run `ghealth-mcp status` to check your connection, `ghealth-mcp setup` to sign in again, or `ghealth-mcp logout` to disconnect.
 
-```bash
-# View daily aggregates (defaults to the last 5 days)
-ghealth steps daily --last-days 5
-ghealth calories daily --last-days 5
-ghealth active-minutes daily --last-days 5
-ghealth distance daily --last-days 5
+## Privacy
 
-# List specific data points with limit
-ghealth sleep list --limit 10
-ghealth heart-rate list --limit 20
-ghealth weight list --limit 5
-ghealth exercise list --limit 5
-```
+Credentials stay on your computer. The server fetches data from Google and returns it to your agent without caching health records or sending them to a project-operated service. Your agent and its model provider can see the returned data.
 
-## AI Agent Integration (Using Skills)
-
-For AI agents (like Codex, Cursor, Claude Code, or Gemini), you can install the agent skill to effectively query your Google Health data.
-
-### Installing the Skill
-
-Add this skill directly to your workspace using skills.sh:
-
-```bash
-npx skills add chiragvijay/ghealth-cli
-```
-
-_(Alternatively, you can copy the local [SKILL.md](skills/google-health/SKILL.md) file into your agent's skill directory)._
+More: [privacy and troubleshooting](docs/privacy.md) · [optional CLI](docs/cli.md).

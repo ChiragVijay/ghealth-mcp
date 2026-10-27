@@ -5,6 +5,11 @@ description: Use the ghealth CLI to inspect Google Health data. Use when asked t
 
 # Google Health CLI
 
+When the `ghealth-mcp` server is connected, prefer its native tools. Start with
+`list_data_types`, use reconciled records or rollups for totals, and preserve
+Google's response fields. If sign-in is needed, have the user run `ghealth-mcp setup`
+in their terminal. The CLI commands below remain available as a fallback.
+
 Use `ghealth` for local, user-authorized Google Health API data. Prefer `--format json`.
 In a source checkout where `ghealth` is not installed, prefix commands with `uv run`.
 
