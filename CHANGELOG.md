@@ -12,7 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Setup, client configuration, and privacy documentation for bring-your-own Google OAuth clients.
 
 ### Security
-- Require patched AnyIO and cryptography versions and refresh the dependency lockfile.
+- Require patched AnyIO, cryptography, and certifi versions and refresh the dependency lockfile.
 - Atomic private credential and agent-config writes, Google OAuth endpoint validation, and callback state checks.
 - File-authoritative automatic token storage prevents stale keyring credentials selecting an old account.
 - Failed token revocation and deletion are reported, and existing agent registrations are preserved.
