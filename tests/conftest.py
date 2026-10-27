@@ -11,7 +11,7 @@ def mock_config_dir(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(ghealth.auth.token_store, "get_config_dir", lambda: tmp_path)
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_keyring(monkeypatch):
     """Mock keyring password storage in memory."""
     store = {}

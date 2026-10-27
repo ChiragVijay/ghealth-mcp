@@ -37,19 +37,19 @@ def update_cmd() -> None:
         typer.echo("Error: 'uv' package manager could not be located in your PATH.", err=True)
         typer.echo("This CLI tool requires 'uv' to perform updates.", err=True)
         typer.echo(
-            "Please install uv (https://astral.sh/uv) or run manually: uv tool upgrade ghealth", err=True
+            "Please install uv (https://astral.sh/uv) or run manually: uv tool upgrade ghealth-mcp", err=True
         )
         raise typer.Exit(code=1)
 
-    typer.echo("Found 'uv'. Running `uv tool upgrade ghealth`...")
+    typer.echo("Found 'uv'. Running `uv tool upgrade ghealth-mcp`...")
     try:
-        result = subprocess.run([uv_path, "tool", "upgrade", "ghealth"], check=True)  # noqa: S603
+        result = subprocess.run([uv_path, "tool", "upgrade", "ghealth-mcp"], check=True)  # noqa: S603
         if result.returncode == 0:
             typer.echo("ghealth updated successfully!")
             return
     except subprocess.CalledProcessError as e:
         typer.echo(f"Error during update: {e}", err=True)
-        typer.echo("Please try running manually: uv tool upgrade ghealth", err=True)
+        typer.echo("Please try running manually: uv tool upgrade ghealth-mcp", err=True)
         raise typer.Exit(code=1) from None
 
 
@@ -58,7 +58,7 @@ def version_callback(value: bool) -> None:
         import importlib.metadata
 
         try:
-            version = importlib.metadata.version("ghealth")
+            version = importlib.metadata.version("ghealth-mcp")
         except importlib.metadata.PackageNotFoundError:
             version = "unknown"
         typer.echo(message=f"ghealth version: {version}")

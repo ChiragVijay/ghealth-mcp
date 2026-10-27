@@ -100,7 +100,7 @@ def test_token_store_keyring(mock_keyring) -> None:
 
 
 def test_token_store_auto_mode(mock_keyring) -> None:
-    """Auto mode dual-writes to both file and keyring, and reads from keyring first."""
+    """Auto mode dual-writes and reads the current local file first."""
     conf = Config(client_id="123", client_secret="abc", token_storage="auto")
     save_config(conf)
 
@@ -118,7 +118,7 @@ def test_token_store_auto_mode(mock_keyring) -> None:
     file_tokens = json.loads(token_file.read_text(encoding="utf-8"))
     assert file_tokens["access_token"] == "auto_a"
 
-    # Load should return tokens (via keyring path first)
+    # Load should return the authoritative local file.
     loaded = load_tokens()
     assert loaded == tokens
 
@@ -161,7 +161,13 @@ def test_token_store_auto_file_permissions(mock_keyring) -> None:
 
     token_file = get_token_path()
     file_mode = token_file.stat().st_mode
-    assert file_mode & 0o777 == stat.S_IRUSR | stat.S_IWUSR  # 0600
+    import os
+
+    if os.name == "nt":
+        # Windows chmod only controls the read-only bit; POSIX mode bits do not model NTFS ACLs.
+        assert file_mode & stat.S_IWUSR
+    else:
+        assert file_mode & 0o777 == stat.S_IRUSR | stat.S_IWUSR  # 0600
 
 
 def test_scopes_expansion() -> None:

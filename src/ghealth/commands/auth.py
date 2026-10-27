@@ -1,4 +1,3 @@
-import contextlib
 import os
 import secrets
 import sys
@@ -197,7 +196,8 @@ def auth_login(
 
     disclosure_msg = (
         "ghealth accesses your Google Health data only to show it locally in this CLI.\n"
-        "Data is not sent to this project, and tokens are stored locally in your OS credential store.\n"
+        "Data is not sent to this project. "
+        "Tokens use your configured local file and/or OS credential store.\n"
         f"Requested scopes: {', '.join(resolved_scopes)}"
     )
 
@@ -237,6 +237,7 @@ def auth_login(
     else:
         try:
             server, actual_port = run_local_redirect_server()
+            server.expected_state = oauth_state
             redirect_uri = f"http://localhost:{actual_port}"
         except Exception as e:
             if not state.quiet:
@@ -499,7 +500,12 @@ def auth_logout(ctx: typer.Context) -> None:
     """Log out and delete local authentication tokens."""
     state: CliState = ctx.obj
 
-    delete_tokens()
+    try:
+        delete_tokens()
+    except RuntimeError:
+        print_cli_error(
+            state, "logout_failed", "Local credentials could not be cleared. Retry logout.", exit_code=1
+        )
 
     if state.output_format == FormatEnum.JSON:
         if not state.quiet:
@@ -519,10 +525,22 @@ def auth_revoke(ctx: typer.Context) -> None:
     if tokens:
         token_to_revoke = tokens.get("refresh_token") or tokens.get("access_token")
         if token_to_revoke and config:
-            with contextlib.suppress(Exception):
+            try:
                 state.revoke_token(config, token_to_revoke)
+            except (httpx.HTTPError, RuntimeError):
+                print_cli_error(
+                    state,
+                    "revoke_failed",
+                    "Google revocation failed. Tokens were kept for retry.",
+                    exit_code=1,
+                )
 
-    delete_tokens()
+    try:
+        delete_tokens()
+    except RuntimeError:
+        print_cli_error(
+            state, "logout_failed", "Local credentials could not be cleared. Retry logout.", exit_code=1
+        )
 
     if state.output_format == FormatEnum.JSON:
         if not state.quiet:

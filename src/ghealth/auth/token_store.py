@@ -1,12 +1,12 @@
 import contextlib
 import json
-import stat
 from pathlib import Path
 
 import keyring
-from keyring.errors import KeyringError
+from keyring.errors import KeyringError, NoKeyringError
 
 from ghealth.config import get_config_dir, load_config
+from ghealth.local_files import write_private_file
 
 
 def get_token_path() -> Path:
@@ -19,7 +19,8 @@ def _load_from_file() -> dict | None:
     path = get_token_path()
     if path.exists():
         try:
-            return json.loads(path.read_text(encoding="utf-8"))
+            value = json.loads(path.read_text(encoding="utf-8"))
+            return value if isinstance(value, dict) else None
         except (json.JSONDecodeError, OSError):
             return None
     return None
@@ -30,7 +31,8 @@ def _load_from_keyring() -> dict | None:
     try:
         val = keyring.get_password("ghealth", "tokens")
         if val:
-            return json.loads(val)
+            value = json.loads(val)
+            return value if isinstance(value, dict) else None
     except (json.JSONDecodeError, KeyringError):
         return None
     return None
@@ -38,12 +40,7 @@ def _load_from_keyring() -> dict | None:
 
 def _save_to_file(tokens: dict) -> None:
     """Save tokens to a local file with restricted permissions (owner read/write only)."""
-    get_config_dir().mkdir(parents=True, exist_ok=True)
-    path = get_token_path()
-    path.write_text(json.dumps(tokens, indent=2), encoding="utf-8")
-    # owner read/write only (0600)
-    with contextlib.suppress(OSError):
-        path.chmod(stat.S_IRUSR | stat.S_IWUSR)
+    write_private_file(get_token_path(), json.dumps(tokens, indent=2))
 
 
 def _save_to_keyring(tokens: dict) -> None:
@@ -56,7 +53,7 @@ def load_tokens() -> dict | None:
     Load OAuth tokens.
 
     Uses the configured storage backend:
-    - ``auto``: try keyring first, fall back to local file.
+    - ``auto``: read the authoritative local file, fall back to keyring for legacy stores.
     - ``keyring``: keyring only.
     - ``plaintext``: local file only.
     """
@@ -67,11 +64,10 @@ def load_tokens() -> dict | None:
         return _load_from_file()
 
     if storage == "auto":
-        # Try keyring first, fall back to file
-        tokens = _load_from_keyring()
-        if tokens is not None:
-            return tokens
-        return _load_from_file()
+        # The file is saved first and remains current even if a keyring update fails.
+        if get_token_path().exists():
+            return _load_from_file()
+        return _load_from_keyring()
 
     # storage == "keyring"
     return _load_from_keyring()
@@ -95,7 +91,7 @@ def save_tokens(tokens: dict) -> None:
 
     if storage == "auto":
         _save_to_file(tokens)
-        with contextlib.suppress(KeyringError, Exception):
+        with contextlib.suppress(KeyringError):
             _save_to_keyring(tokens)
         return
 
@@ -113,10 +109,19 @@ def save_tokens(tokens: dict) -> None:
 
 def delete_tokens() -> None:
     """Delete all local token information from both plaintext files and the OS keyring."""
-    path = get_token_path()
-    if path.exists():
-        with contextlib.suppress(Exception):
-            path.unlink()
-
-    with contextlib.suppress(Exception):
-        keyring.delete_password("ghealth", "tokens")
+    failed = []
+    try:
+        get_token_path().unlink(missing_ok=True)
+    except OSError:
+        failed.append("local token file")
+    try:
+        if keyring.get_password("ghealth", "tokens") is not None:
+            keyring.delete_password("ghealth", "tokens")
+    except NoKeyringError:
+        config = load_config()
+        if config and config.token_storage == "keyring":
+            failed.append("OS keyring (backend unavailable)")
+    except (KeyringError, OSError):
+        failed.append("OS keyring")
+    if failed:
+        raise RuntimeError(f"Could not clear {', '.join(failed)}. Unlock the store and retry logout.")

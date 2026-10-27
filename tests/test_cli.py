@@ -18,7 +18,7 @@ def test_version() -> None:
 
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    expected_version = importlib.metadata.version("ghealth")
+    expected_version = importlib.metadata.version("ghealth-mcp")
     assert f"ghealth version: {expected_version}" in result.stdout
 
 
@@ -221,7 +221,7 @@ def test_update_command_uv(monkeypatch) -> None:
     assert result.exit_code == 0
     assert "Found 'uv'" in result.stdout
     assert "ghealth updated successfully!" in result.stdout
-    assert uv_runs == [["/mocked/path/to/uv", "tool", "upgrade", "ghealth"]]
+    assert uv_runs == [["/mocked/path/to/uv", "tool", "upgrade", "ghealth-mcp"]]
 
 
 def test_update_command_not_found(monkeypatch) -> None:
