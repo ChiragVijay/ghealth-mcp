@@ -51,6 +51,15 @@ References: [Codex](https://developers.openai.com/codex/mcp), [Cursor](https://c
 
 The server reuses your saved Google sign-in. Crew's Windows probe can report `mcp_probe_sandbox_unavailable` because Crew has no supported probe sandbox on that host. That message does not establish whether chat-side tool loading succeeded. Check the tools in a chat; do not disable sandbox protections merely to make the probe pass.
 
+If sign-in works in your terminal but Crew reports a missing configuration file on Windows, route `ghealth` through Crew's local MCP gateway:
+
+1. In **Settings → Developer**, enable **Developer Mode** to show the Developer sidebar entry.
+2. Open **Developer → MCP Management** and enable **Put a stub in front of ghealth**. Review and approve the displayed launch command.
+3. Keep **Share backends across sessions** off so each chat has its own backend.
+4. Fully quit and reopen Crew. Reloading a chat alone may not start the gateway after routing is first enabled.
+
+The gateway runs the server from Crew's host process and reuses your existing local credentials. Ask a chat to check the connection and retrieve a workout to confirm access.
+
 ## Optional write access
 
 Read access is the default. To create, update, or delete records, authorize the appropriate write scope and start `ghealth-mcp serve --allow-writes`. For example, retain reads and add activity writes:
