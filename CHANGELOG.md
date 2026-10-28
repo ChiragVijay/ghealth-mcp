@@ -11,10 +11,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Browser OAuth setup with PKCE, live connection verification, shared local sign-in, and agent registration.
 - Setup, client configuration, and privacy documentation for bring-your-own Google OAuth clients.
 
+### Fixed
+- Keep Windows setup, terminal commands, and MCP clients on the same local credential directory.
+- Preserve successful token refreshes when Windows Credential Manager rejects the optional keyring copy.
+- Report configuration-path problems without claiming the Google sign-in was never completed.
+
 ### Security
 - Require patched AnyIO, cryptography, and certifi versions and refresh the dependency lockfile.
 - Atomic private credential and agent-config writes, Google OAuth endpoint validation, and callback state checks.
 - File-authoritative automatic token storage prevents stale keyring credentials selecting an old account.
+- An empty local logout marker prevents unavailable keyring cleanup from restoring an older sign-in.
 - Failed token revocation and deletion are reported, and existing agent registrations are preserved.
 
 ## [1.1.0] - 2026-06-27

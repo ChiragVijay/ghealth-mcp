@@ -121,7 +121,9 @@ def create_server(
             finally:
                 client.close()
         except GHealthApiError as exc:
-            if exc.code in {"not_configured", "not_authenticated", "refresh_failed", "api_unauthorized"}:
+            if exc.code == "not_configured":
+                raise ToolError(exc.message) from exc
+            if exc.code in {"not_authenticated", "refresh_failed", "api_unauthorized"}:
                 raise ToolError("Google sign-in required. Run ghealth-mcp setup in your terminal.") from exc
             raise ToolError(f"Google Health {exc.code}: {exc.message}") from exc
 

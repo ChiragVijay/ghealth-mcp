@@ -1,5 +1,6 @@
 import contextlib
 import json
+import sys
 from pathlib import Path
 
 import keyring
@@ -7,6 +8,16 @@ from keyring.errors import KeyringError, NoKeyringError
 
 from ghealth.config import get_config_dir, load_config
 from ghealth.local_files import write_private_file
+
+KEYRING_ERRORS: tuple[type[Exception], ...] = (KeyringError, OSError)
+if sys.platform == "win32":
+    try:
+        from keyring.backends.Windows import pywintypes
+    except ImportError:
+        pass  # The Windows backend is unavailable; keyring will report NoKeyringError.
+    else:
+        # The Windows backend can raise native errors outside KeyringError's hierarchy.
+        KEYRING_ERRORS += (pywintypes.error,)
 
 
 def get_token_path() -> Path:
@@ -17,13 +28,11 @@ def get_token_path() -> Path:
 def _load_from_file() -> dict | None:
     """Load tokens from the local file."""
     path = get_token_path()
-    if path.exists():
-        try:
-            value = json.loads(path.read_text(encoding="utf-8"))
-            return value if isinstance(value, dict) else None
-        except (json.JSONDecodeError, OSError):
-            return None
-    return None
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        return value if isinstance(value, dict) and value else None
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError):
+        return None
 
 
 def _load_from_keyring() -> dict | None:
@@ -33,7 +42,7 @@ def _load_from_keyring() -> dict | None:
         if val:
             value = json.loads(val)
             return value if isinstance(value, dict) else None
-    except (json.JSONDecodeError, KeyringError):
+    except (json.JSONDecodeError, *KEYRING_ERRORS):
         return None
     return None
 
@@ -65,9 +74,14 @@ def load_tokens() -> dict | None:
 
     if storage == "auto":
         # The file is saved first and remains current even if a keyring update fails.
-        if get_token_path().exists():
+        try:
+            get_token_path().stat()
+        except FileNotFoundError:
+            return _load_from_keyring()
+        except OSError:
+            return None  # Denied file access must not select an older keyring account.
+        else:
             return _load_from_file()
-        return _load_from_keyring()
 
     # storage == "keyring"
     return _load_from_keyring()
@@ -91,14 +105,14 @@ def save_tokens(tokens: dict) -> None:
 
     if storage == "auto":
         _save_to_file(tokens)
-        with contextlib.suppress(KeyringError):
+        with contextlib.suppress(*KEYRING_ERRORS):
             _save_to_keyring(tokens)
         return
 
     get_config_dir().mkdir(parents=True, exist_ok=True)
     try:
         _save_to_keyring(tokens)
-    except KeyringError as e:
+    except KEYRING_ERRORS as e:
         msg = (
             f"Failed to store tokens in OS keyring: {e}.\n"
             "Consider switching to 'auto' storage for automatic fallback:\n"
@@ -108,20 +122,26 @@ def save_tokens(tokens: dict) -> None:
 
 
 def delete_tokens() -> None:
-    """Delete all local token information from both plaintext files and the OS keyring."""
+    """Clear local credentials and prevent stale legacy keyring credentials resurfacing."""
+    config = load_config()
+    storage = "auto" if config is None else config.token_storage
     failed = []
     try:
-        get_token_path().unlink(missing_ok=True)
+        if storage == "auto":
+            # A credential-free marker disables legacy fallback in later processes,
+            # including when keyring cleanup is unavailable or fails.
+            _save_to_file({})
+        else:
+            get_token_path().unlink(missing_ok=True)
     except OSError:
         failed.append("local token file")
     try:
         if keyring.get_password("ghealth", "tokens") is not None:
             keyring.delete_password("ghealth", "tokens")
     except NoKeyringError:
-        config = load_config()
-        if config and config.token_storage == "keyring":
+        if storage == "keyring":
             failed.append("OS keyring (backend unavailable)")
-    except (KeyringError, OSError):
+    except KEYRING_ERRORS:
         failed.append("OS keyring")
     if failed:
         raise RuntimeError(f"Could not clear {', '.join(failed)}. Unlock the store and retry logout.")

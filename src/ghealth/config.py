@@ -1,4 +1,6 @@
 import json
+import os
+import sys
 from pathlib import Path
 from typing import Literal
 
@@ -21,6 +23,12 @@ class Config(BaseModel):
 
 def get_config_dir() -> Path:
     """Return the platform-specific user configuration directory for ghealth."""
+    # Windows' known-folder API can redirect each sandbox to a different directory.
+    # Use the inherited user profile location so setup, shell commands, and MCP agree.
+    if sys.platform == "win32" and (local_app_data := os.environ.get("LOCALAPPDATA")):
+        directory = Path(local_app_data)
+        if directory.is_absolute():
+            return directory / "ghealth" / "ghealth"
     return Path(user_config_dir(appname="ghealth"))
 
 
@@ -32,15 +40,30 @@ def get_config_path() -> Path:
 def load_config() -> Config | None:
     """Load configuration from config.json. Return None if it doesn't exist or is invalid."""
     path = get_config_path()
-    if not path.exists():
-        return None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
             return None
         return Config(**data)
-    except (json.JSONDecodeError, OSError, ValidationError):
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError, ValidationError):
         return None
+
+
+def describe_config_problem() -> str:
+    """Describe a failed configuration load without exposing credential values."""
+    try:
+        Config.model_validate_json(get_config_path().read_text(encoding="utf-8"))
+    except OSError as exc:
+        return f"{type(exc).__name__} (OS error {exc.errno}, Windows error {getattr(exc, 'winerror', None)})."
+    except UnicodeDecodeError:
+        return "Invalid configuration encoding; expected UTF-8 JSON."
+    except ValidationError as exc:
+        issues = [
+            f"{'.'.join(str(part) for part in error['loc']) or 'document'}: {error['type']}"
+            for error in exc.errors(include_input=False, include_context=False, include_url=False)
+        ]
+        return "Invalid configuration: " + "; ".join(issues)
+    return "Configuration is now readable; retry the request."
 
 
 def save_config(config: Config) -> None:

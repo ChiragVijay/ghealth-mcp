@@ -12,7 +12,7 @@ from ghealth.api import users as users_api
 from ghealth.api.errors import GHealthApiError, parse_api_error
 from ghealth.auth.oauth import refresh_access_token
 from ghealth.auth.token_store import load_tokens, save_tokens
-from ghealth.config import Config, load_config
+from ghealth.config import Config, describe_config_problem, get_config_path, load_config
 
 MAX_PAGINATION_PAGES = 100
 DEFAULT_BASE_URL = "https://health.googleapis.com"
@@ -27,7 +27,10 @@ def create_authenticated_client(
     if not config:
         raise GHealthApiError(
             "not_configured",
-            "CLI is not configured. Please run 'ghealth auth configure --credentials <path>' first.",
+            f"Could not load Google Health configuration at {get_config_path()}. "
+            f"{describe_config_problem()} "
+            "If you already signed in, check this agent's credential-folder access. "
+            "Otherwise run 'ghealth-mcp setup --credentials <path>'.",
         )
 
     tokens = load_tokens()

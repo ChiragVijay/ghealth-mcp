@@ -10,9 +10,13 @@ Your agent, model provider, conversation history, and any client-side logging ca
 
 OAuth client configuration and tokens are saved in the platform-specific `ghealth` user configuration directory, outside your checkout. `ghealth-mcp status` shows that location without printing tokens. Downloaded client JSON files should be kept private and outside Git.
 
+On Windows, setup and agents share `%LOCALAPPDATA%\ghealth\ghealth`. If an agent reports missing configuration after you signed in, check that it can access this folder before repeating setup.
+
 - `auto` (default) saves tokens to a private local file and makes a best-effort copy to the OS keyring, supporting agents that cannot access the keyring. The file is authoritative so failed keyring updates cannot silently select an old account. An unreadable or corrupt file does not fall back to potentially stale keyring credentials.
 - `keyring` keeps tokens only in the OS credential store. Choose it with `ghealth auth configure --token-storage keyring` and sign in again. It requires every agent to have access to that store.
 - `plaintext` uses only the local file and requires explicit acknowledgement in the CLI configuration command.
+
+After logout, automatic storage keeps an empty private marker so an unavailable keyring cannot restore an older sign-in.
 
 Credential files and agent configuration edits use unique temporary files and atomic replacement. POSIX files start with owner-only permissions; Windows files inherit their directory ACLs. Use a private OS user account and user directory. This does not protect against malware or another process running as you.
 
